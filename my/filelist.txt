@@ -1,5 +1,10 @@
-my/filelist.txt
-kernel/hw1_syscalls.c
-my/hw1_syscalls.h
 arch/i386/kernel/entry.S
 arch/i386/kernel/restrict.c
+include/linux/restrict_types.h
+kernel/Makefile
+kernel/hw1_syscalls.c
+my/filelist.txt
+my/hw1_syscalls.h
+my/make.sh
+my/tar.sh
+my/tests.c
