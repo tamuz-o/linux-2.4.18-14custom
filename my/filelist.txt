@@ -1,6 +1,8 @@
 arch/i386/kernel/entry.S
 arch/i386/kernel/restrict.c
+arch/i386/kernel/Makefile
 include/linux/restrict_types.h
+include/linux/sched.h
 kernel/Makefile
 kernel/hw1_syscalls.c
 my/filelist.txt

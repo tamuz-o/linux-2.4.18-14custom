@@ -13,4 +13,11 @@ typedef struct forbidden_activity_info {
 	int time;
 } fai;
 
+typedef struct {
+	scr* restrictions;
+	int count;
+} scr_list_t;
+
+typedef void* fai_log_t;  //tamuz
+
 #endif //LINUX_2_4_18_14CUSTOM_RESTRICT_TYPES_H

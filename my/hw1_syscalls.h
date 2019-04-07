@@ -18,15 +18,21 @@ typedef struct forbidden_activity_info {
 	int time;
 } fai;
 
+typedef struct {
+	scr* restrictions;
+	int count;
+} scr_list_t;
+
 int sc_restrict (pid_t pid, int proc_restriction_level, scr* restrictions_list,
 					 int list_size)  // syscall 243
 {
 	int res;
+	scr_list_t list {restrictions_list, list_size};
 	//tamuz too many arguments, use stack
 	__asm__(
 			"int $0x80;"
 			: "=a" (res)
-			: "0" (243), "b" (pid), "c" (proc_restriction_level), "d" (restrictions_list)//, "?" (list_size)
+			: "0" (243), "b" (pid), "c" (proc_restriction_level), "d" (&list)
 			: "memory"
 			);
 	if (res < 0) {

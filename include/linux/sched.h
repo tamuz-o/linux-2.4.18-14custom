@@ -28,6 +28,8 @@ extern unsigned long event;
 #include <linux/fs_struct.h>
 #include <linux/low-latency.h>
 
+#include <linux/restrict_types.h>
+
 struct exec_domain;
 
 /*
@@ -451,6 +453,11 @@ struct task_struct {
 
 /* journalling filesystem info */
 	void *journal_info;
+
+/* Restrictions */
+//	scr *restrictions;
+//	int restrictions_count;
+//	fai_log_t *fai_log;
 };
 
 /*
