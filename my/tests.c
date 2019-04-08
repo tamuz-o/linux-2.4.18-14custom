@@ -1,3 +1,5 @@
+#include <fork.h>
+#include <unistd.h>
 #include <stdio.h>
 #include "hw1_syscalls.h"
 
@@ -7,12 +9,13 @@
 
 int main()
 {
-	printf("1\n");
-//	sc_restrict(1000, 2, 0, 0);
-	printf("2\n");
-	set_proc_restriction(1001, 1);
-	printf("3\n");
-	get_process_log(1002, 0, 0);
-	printf("4\n");
+	pid_t pid = fork();
+	if (!pid) { // son
+		while(1) sleep(2);
+	} else {
+		printf("%d\n", pid);
+		sc_restrict(pid, 0, 0, 0);
+		while (1);
+	}
 	return 0;
 }

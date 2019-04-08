@@ -455,9 +455,10 @@ struct task_struct {
 	void *journal_info;
 
 /* Restrictions */
-//	scr *restrictions;
-//	int restrictions_count;
-//	fai_log_t *fai_log;
+	int restriction_enabled;  /* set to 1 iff restriction feature is on for this*/
+	scr *restrictions;
+	int restrictions_count;
+	fai_log_t *fai_log;
 };
 
 /*
