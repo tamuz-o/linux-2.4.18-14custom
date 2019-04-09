@@ -458,6 +458,7 @@ struct task_struct {
 	int restriction_enabled;  /* set to 1 iff restriction feature is on for this*/
 	scr *restrictions;
 	int restrictions_count;
+	int restriction_level;
 	fai_log_t *fai_log;
 };
 

@@ -201,7 +201,15 @@ ENTRY(system_call)
 	jne tracesys
 	cmpl $(NR_syscalls),%eax
 	jae badsys
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	pushl %eax
 	call SYMBOL_NAME(is_restricted)
+	popl %eax
+	popl %ecx
+	popl %edx
+	popl %eax
 	//tamuz check if successful
 	movl EAX(%esp),%eax
 	call *SYMBOL_NAME(sys_call_table)(,%eax,4)

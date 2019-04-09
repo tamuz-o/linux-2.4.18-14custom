@@ -2,8 +2,6 @@
 #define LINUX_2_4_18_14CUSTOM_HW1_SYSCALLS_H
 
 #include <errno.h>
-//#include <linux/kernel.h> tamuz
-//#include <linux/types.h>
 #include <sys/types.h>
 
 typedef struct sys_call_restrictor {

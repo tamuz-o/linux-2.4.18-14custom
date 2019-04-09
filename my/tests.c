@@ -1,6 +1,7 @@
-#include <fork.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "hw1_syscalls.h"
 
 //int sc_restrict (pid_t pid, int proc_restriction_level, scr* restrictions_list, int list_size)
@@ -11,7 +12,12 @@ int main()
 {
 	pid_t pid = fork();
 	if (!pid) { // son
-		while(1) sleep(2);
+		char cwd[256];
+		while(1) {
+			sleep(2);
+//			printf("x");
+			getcwd(cwd, 256);
+		}
 	} else {
 		printf("%d\n", pid);
 		sc_restrict(pid, 0, 0, 0);
