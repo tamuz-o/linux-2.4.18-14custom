@@ -459,7 +459,9 @@ struct task_struct {
 	scr *restrictions;
 	int restrictions_count;
 	int restriction_level;
-	fai_log_t *fai_log;
+	fai *fai_log;
+	int fai_next;
+	int fai_full;
 };
 
 /*

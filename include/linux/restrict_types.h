@@ -1,6 +1,8 @@
 #ifndef LINUX_2_4_18_14CUSTOM_RESTRICT_TYPES_H
 #define LINUX_2_4_18_14CUSTOM_RESTRICT_TYPES_H
 
+#define FAI_LOG_SIZE 100
+
 typedef struct sys_call_restrictor {
 	int syscall_num;
 	int restriction_threshold;
@@ -17,7 +19,5 @@ typedef struct {
 	scr* restrictions;
 	int count;
 } scr_list_t;
-
-typedef void* fai_log_t;  //tamuz
 
 #endif //LINUX_2_4_18_14CUSTOM_RESTRICT_TYPES_H

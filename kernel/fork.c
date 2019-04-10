@@ -620,6 +620,8 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	p->restrictions = NULL;
 	p->restrictions_count = 0;
 	p->fai_log = NULL;
+	p->fai_next = 0;
+	p->fai_full = 0;
 
 	retval = -EAGAIN;
 	/*
