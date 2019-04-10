@@ -5,10 +5,18 @@
 int is_restricted(long int syscall)
 {
 	if (current->restriction_enabled) {
-//		for (int i=0; i < current->restrictions_count; ++i) {
-//
-//		}
-		printk("%d %d\n", current->pid, syscall);
+		printk("%d %d: ", current->pid, syscall);
+		int i;
+		for (i=0; i < current->restrictions_count; ++i) {
+			printk("[%d]", i);
+			printk("%d ", current->restrictions[i].syscall_num);
+			if (current->restrictions[i].syscall_num == syscall) {
+				printk("%d blocked\n",syscall);
+				//tamuz log
+				return 1;
+			}
+		}
+		printk("\n");
 	}
 	return 0;
 }

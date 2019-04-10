@@ -209,8 +209,9 @@ ENTRY(system_call)
 	popl %eax
 	popl %ecx
 	popl %edx
-	popl %eax
-	//tamuz check if successful
+	addl $4,%esp
+	cmpl $0,%eax
+	//tamuz jne badsys
 	movl EAX(%esp),%eax
 	call *SYMBOL_NAME(sys_call_table)(,%eax,4)
 	movl %eax,EAX(%esp)		# save the return value

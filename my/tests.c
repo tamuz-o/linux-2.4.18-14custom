@@ -11,16 +11,22 @@
 int main()
 {
 	pid_t pid = fork();
+	scr scrs[3];
+	scrs[0].syscall_num = 174;
+	scrs[1].syscall_num = 175;
+	scrs[2].syscall_num = 162;
+	scrs[0].restriction_threshold = scrs[1].restriction_threshold = scrs[2].restriction_threshold = 2;
 	if (!pid) { // son
-		char cwd[256];
+		//getcwd:  183.  sleep: 174 175 162
+		//char cwd[256];
 		while(1) {
 			sleep(2);
 //			printf("x");
-			getcwd(cwd, 256);
+			//getcwd(cwd, 256);
 		}
 	} else {
 		printf("%d\n", pid);
-		sc_restrict(pid, 0, 0, 0);
+		sc_restrict(pid, 0, scrs, 3);
 		while (1);
 	}
 	return 0;
