@@ -5,15 +5,15 @@
 asmlinkage long is_restricted(long int syscall)
 {
 	if (current->restriction_enabled) {
-		printk("%d %d: ", current->pid, syscall);
+//		printk("%d %d: ", current->pid, syscall);
 		int i;
 		for (i=0; i < current->restrictions_count; ++i) {
 			scr *restr = &current->restrictions[i];
-			printk("[%d]", i);
-			printk("%d ", restr->syscall_num);
+//			printk("[%d]", i);
+//			printk("%d ", restr->syscall_num);
 			if (restr->syscall_num == syscall) {
 				if (restr->restriction_threshold > current->restriction_level) {
-					printk("%d blocked\n", syscall);
+//					printk("%d blocked\n", syscall);
 					/* Log forbidden activity: */
 					fai *entry = current->fai_log + (current->fai_next++);
 					if (current->fai_next == 100) {
@@ -30,7 +30,7 @@ asmlinkage long is_restricted(long int syscall)
 				}
 			}
 		}
-		printk("\n");
+//		printk("\n");
 	}
 	return 0;
 }

@@ -12,14 +12,14 @@ int sys_sc_restrict (pid_t pid, int proc_restriction_level, scr* restrictions_li
 		printk("pid %d < 0\n", pid);
 		return -ESRCH;
 	}
+	task_t *task = find_task_by_pid(pid);
+	if (!task) {
+//		printk("task not found\n");
+		return -ESRCH;
+	}
 	if (proc_restriction_level < 0 || proc_restriction_level > 2 || list_size < 0) {
 		printk ("invalid\n");
 		return -EINVAL;
-	}
-	task_t *task = find_task_by_pid(pid);
-	if (!task) {
-		printk("task not found\n");
-		return -ESRCH;
 	}
 	//tamuz if process already has restrictions
 	if (list_size) {
@@ -55,9 +55,10 @@ int sys_set_proc_restriction (pid_t pid, int proc_restriction_level)
 	}
 	task_t *task = find_task_by_pid(pid);
 	if (!task) {
-		printk("task not found\n");
+//		printk("task not found\n");
 		return -ESRCH;
 	}
+	//tamuz if wasn't restricted yet
 	if (proc_restriction_level < 0 || proc_restriction_level > 2) {
 		printk("invalid\n");
 		return -EINVAL;
@@ -75,12 +76,13 @@ int sys_get_process_log (pid_t pid, int size, fai* user_mem)
 	}
 	task_t *task = find_task_by_pid(pid);
 	if (!task) {
-		printk("task not found\n");
+//		printk("task not found\n");
 		return -ESRCH;
 	}
 	if (size == 0) {
 		return 0;
 	}
+	//tamuz if process has no restrictions
 	if (size > FAI_LOG_SIZE || (!task->fai_full && size > task->fai_next) || size < 0) {
 		printk("requested too much\n");
 		return -EINVAL;
