@@ -616,7 +616,6 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	p->cpus_allowed_mask &= p->cpus_allowed;
 
 	/*Initialize values relevant for the restriction feature*/
-	p->restriction_enabled = 0;
 	p->restrictions = NULL;
 	p->restrictions_count = 0;
 	p->fai_log = NULL;

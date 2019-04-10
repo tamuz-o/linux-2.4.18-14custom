@@ -1,5 +1,8 @@
-- dry!
+- partner!
 - tests, including memory leaks
 	dmesg | less -S
 - when sc_restrict is called twice
 - handle todos
+
+tests:
+* after proc 1000 is forked to 1001, make sure 1000 retains its restrictions and 1001 has none

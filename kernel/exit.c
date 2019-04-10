@@ -37,8 +37,8 @@ static void release_task(struct task_struct * p)
 	free_uid(p->user);
 	unhash_process(p);
 
-//	kfree(p->restrictions);
-//	kfree(p->fai_log);
+	kfree(p->restrictions);
+	kfree(p->fai_log);
 
 	release_thread(p);
 	current->cmin_flt += p->min_flt + p->cmin_flt;

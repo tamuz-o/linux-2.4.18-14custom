@@ -53,7 +53,7 @@ int fatherf(pid_t spid)
 	get_process_log(spid, LOGSIZE, log);
 	int i;
 	for (i=0; i<LOGSIZE; ++i) {
-		printf("%d\n", log[i].time);
+		printf("%d\n", log[i].time);  //tamuz this occasionally prints crap
 	}
 	return 0;
 }

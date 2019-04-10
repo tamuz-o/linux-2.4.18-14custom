@@ -455,13 +455,12 @@ struct task_struct {
 	void *journal_info;
 
 /* Restrictions */
-	int restriction_enabled;  /* set to 1 iff restriction feature is on for this*/
 	scr *restrictions;
 	int restrictions_count;
 	int restriction_level;
 	fai *fai_log;
-	int fai_next;
-	int fai_full;
+	int fai_next;  /* index number where the next entry is to be inserted */
+	int fai_full;  /* set to 1 iff the log has 100 entries*/
 };
 
 /*
