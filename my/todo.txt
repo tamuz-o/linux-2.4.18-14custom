@@ -1,8 +1,5 @@
-kernel/fork.c
-kernel/exit.c
-include/linux/sched.h: the process control block task_struct
-
-
-to use pid_t:
-in kernel #include <linux/types.h>
-in user #include <sys/types.h>
+- dry!
+- tests, including memory leaks
+	dmesg | less -S
+- when sc_restrict is called twice
+- handle todos

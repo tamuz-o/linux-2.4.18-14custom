@@ -4,6 +4,7 @@ arch/i386/kernel/Makefile
 include/linux/restrict_types.h
 include/linux/sched.h
 kernel/Makefile
+kernel/exit.c
 kernel/fork.c
 kernel/hw1_syscalls.c
 my/filelist.txt
