@@ -213,7 +213,7 @@ ENTRY(system_call)
 	pushl %ebx
 	pushl %eax
 	call SYMBOL_NAME(IsSysCallAllowed) 
-	cmp $-1, %eax   //tamuz. i think this is irrelevant, the `je` will only see if %edx==0
+	cmp $-1, %eax
 	popl %eax
 	popl %ebx
 	popl %eax
