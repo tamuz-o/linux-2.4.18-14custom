@@ -19,11 +19,11 @@ typedef struct forbidden_activity_info{
 } fai;
 
 
-struct log_array{	//tamuz. this is defined differently in sched.h
-    int indexWrite;
-    int indexRead;
-    int size;
-    int full;
+struct log_array{
+	int indexWrite;
+	int size;
+	int num_of_logs;
+	int full;
     fai* array;
 };
 
@@ -31,7 +31,7 @@ struct log_array{	//tamuz. this is defined differently in sched.h
 /* system call number 243 */
 int sc_restrict(pid_t pid, int proc_restriction_level, scr* restriction_list, int list_size){
     unsigned int res;
-     if(pid<0){			// tamuz. should handle this in syscall, no?
+     if(pid<0){
          errno=ESRCH;
          return -1;
      }
@@ -51,7 +51,7 @@ int sc_restrict(pid_t pid, int proc_restriction_level, scr* restriction_list, in
         return 0;
     }
 	
-    if(res >= (unsigned long)(-125)){	// tamuz. why not just < 0?
+    if(res >= (unsigned long)(-125)){
         errno = -res;
     }
 	

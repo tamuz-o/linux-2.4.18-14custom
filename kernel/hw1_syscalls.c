@@ -14,6 +14,8 @@
 /* system call number 243 */
 int sys_sc_restrict(pid_t pid, int proc_restriction_level, scr* restriction_list, int list_size){
 	struct task_struct* p = find_task_by_pid(pid);
+	scr* temp_list = NULL;
+	int WasRestricted = 1; // 1 - was , 0 - not
 	if(!p){
 		return -ESRCH;
 	}
@@ -22,6 +24,7 @@ int sys_sc_restrict(pid_t pid, int proc_restriction_level, scr* restriction_list
 		 return -EINVAL;
 	 }
 	if(p->logArray == NULL){ // allocating new log array only if the log array isn't allocated yet
+		WasRestricted = 0;
 		p->logArray = (struct log_array*)kmalloc(sizeof(struct log_array),GFP_KERNEL);
 		if(!p->logArray){
 			return -ENOMEM;
@@ -30,32 +33,39 @@ int sys_sc_restrict(pid_t pid, int proc_restriction_level, scr* restriction_list
 		if(!p->logArray->array){
 			kfree(p->logArray);
 			return -ENOMEM;
-		}	
+		}
+		p->logArray->indexWrite=0;
+		p->logArray->size=LOG_SIZE;
+		p->logArray->num_of_logs = 0;
+		p->logArray->full=0;
+	}
+	if(list_size >0){
+		temp_list = (scr*)kmalloc(sizeof(*p->restrictionList)*list_size,GFP_KERNEL);
+		if(!temp_list){
+			if(WasRestricted == 0){ // returning the last state of the process
+				kfree(p->logArray->array);
+				kfree(p->logArray);
+				p->logArray = NULL;
+			}
+			return -ENOMEM;
+		}
+		
+		if(copy_from_user(temp_list, restriction_list, (list_size)* sizeof(scr)) != 0){
+			if(WasRestricted == 0){ // returning the last state of the process
+				kfree(p->logArray->array);
+				kfree(p->logArray);
+				p->logArray = NULL;
+			}
+			kfree(temp_list);
+			return -ENOMEM;
+		}
 	}
 	if(p->restrictionList != NULL){ // if the restriction list is allready allocated should first offall release it 
 		kfree(p->restrictionList);
 		p->restrictionList = NULL;
 	}
-	if(list_size >0){
-		p->restrictionList = (scr*)kmalloc(sizeof(*p->restrictionList)*list_size,GFP_KERNEL);
-		if(!p->restrictionList){
-			kfree(p->logArray->array);
-			kfree(p->logArray);
-			return -ENOMEM;
-		}
-		
-		if(copy_from_user(p->restrictionList, restriction_list, (list_size)* sizeof(scr)) != 0){
-			kfree(p->logArray->array);
-			kfree(p->logArray);
-			kfree(p->restrictionList);
-			return -ENOMEM;
-		}
-	}
-    p->logArray->indexWrite=0;		//tamuz. error! shouldn't delete an existing log
-    p->logArray->size=LOG_SIZE;
-	p->logArray->num_of_logs = 0;
-	p->logArray->full=0;
-	
+
+	p->restrictionList = temp_list;
 	p->restriction_list_size = list_size;
     p->restriction_level = proc_restriction_level;
 	return 0;
@@ -96,7 +106,7 @@ int sys_get_process_log(pid_t pid, int size, fai* user_mem){
 	if(p->logArray == NULL){
 		return -EINVAL;
 	}
-	if(size > p->logArray->size || size < 0 || size > p->logArray->num_of_logs){	//tamuz. logArray-> size or ->num_of_logs?
+	if(size > p->logArray->size || size < 0 || size > p->logArray->num_of_logs){
 		return -EINVAL;
 	}
 	

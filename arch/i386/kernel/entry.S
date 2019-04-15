@@ -204,7 +204,6 @@ ENTRY(system_call)
 	
 /* HW1 OS
 *  calling the IsSysCallAllowed if return -1 , then jmp to badsys else continue
-*  the arguments is already on the stuck
 *  the return value in the eax contains the number of the original syscall
 */
 	pushl %edx
