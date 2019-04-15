@@ -93,6 +93,23 @@ static void stress_restrictions_list();
 
 static void stress_user_mem();
 
+/*YARIN and TAMUZ*/
+static void test_Fork();
+
+static void restrict_success_overrideToNull();
+
+static void restrict_success_overrideFromNull();
+
+static void get_process_log_fail_when_syscall_was_permitted();
+
+static void after_override_log_is_kept();
+
+static void after_override_log_is_still_empty();
+
+static void after_override_add_to_log();
+
+static void test_fork_log();
+
 int main() {
     /* Must succeed restrict_success_sonHasNoRestrictions() before other tests. */
     callTestFunction(restrict_success_sonHasNoRestrictions);
@@ -125,6 +142,16 @@ int main() {
     callTestFunction(get_process_log_success_moreThan100);
     callTestFunction(get_process_log_success_failSorted);
     callTestFunction(test_zombieRetainInfo);
+
+    /*YARIN and TAMUZ*/
+	callTestFunction(test_Fork);
+	callTestFunction(restrict_success_overrideToNull);
+	callTestFunction(restrict_success_overrideFromNull);
+	callTestFunction(get_process_log_fail_when_syscall_was_permitted);
+	callTestFunction(after_override_log_is_kept);
+	callTestFunction(after_override_log_is_still_empty);
+	callTestFunction(after_override_add_to_log);
+	callTestFunction(test_fork_log);
 
 #ifdef STRESS_TEST
     callTestFunction(stress_restrict_override);
@@ -574,4 +601,181 @@ static void stress_user_mem() {
             exit(0);
         }
     }
+}
+
+
+/*YARIN*/
+static void test_Fork(){
+	int i;
+	pid_t pid = getpid();
+	fai fail[100];
+
+	scr scrl[] = {{13, 2}, // 13 = time.
+				  {20, 1}, // 20 = getpid.
+				  {64, 0}}; // 64 = getppid.
+
+
+	assertTest(sc_restrict(pid, 0, scrl, 3) == 0);
+
+	pid_t pid_new = fork();
+
+	if(pid_new > 0){
+		// if father it's restricted
+		wait(NULL);
+		assertTest(getpid() == -1);
+	}
+
+	else{
+		// son should be ok
+		assertTest(getpid() != -1);
+		exit(0);
+	}
+}
+
+/*TAMUZ (until end of file)*/
+static void restrict_success_overrideToNull() {
+	scr scrl1[] = {{13, 2},  /* 13 = time. */
+				   {20, 1}}; /* 20 = getpid. */
+
+	assertTest(sc_restrict(getpid(), 1, scrl1, 2) == 0);
+	assertTest(time(NULL) == -1);
+	assertTest(getpid() != -1);
+	assertTest(getppid() != -1);
+	assertTest(errno == ENOSYS);
+
+	assertTest(sc_restrict(getpid(), 1, NULL, 0) == 0);
+	assertTest(time(NULL) != -1);
+	assertTest(getpid() != -1);
+	assertTest(getppid() != -1);
+}
+
+static void restrict_success_overrideFromNull() {
+	scr scrl1[] = {{13, 2},  /* 13 = time. */
+				   {20, 1}}; /* 20 = getpid. */
+
+	assertTest(sc_restrict(getpid(), 1, NULL, 0) == 0);
+	assertTest(time(NULL) != -1);
+	assertTest(getpid() != -1);
+	assertTest(getppid() != -1);
+
+	assertTest(sc_restrict(getpid(), 1, scrl1, 2) == 0);
+	assertTest(time(NULL) == -1);
+	assertTest(getpid() != -1);
+	assertTest(getppid() != -1);
+	assertTest(errno == ENOSYS);
+}
+
+static void get_process_log_fail_when_syscall_was_permitted() {
+	fai fail[5];
+	pid_t pid = getpid();
+	scr scrl1[] = {{13, 0},  /* 13 = time. */
+				   {20, 1},  /* 20 = getpid. */
+				   {64, 2}}; /* 64 = getppid. */
+
+	assertTest(sc_restrict(getpid(), 1, scrl1, 3) == 0);
+	assertTest(time(NULL) != -1);
+
+	assertTest(get_process_log(pid, 1, fail) == -1);
+	assertTest(errno == EINVAL);
+}
+
+static void after_override_log_is_kept() {
+	fai fail[5];
+	pid_t pid = getpid();
+	scr scrl1[] = {{13, 0},  /* 13 = time. */
+				   {20, 1},  /* 20 = getpid. */
+				   {64, 2}}; /* 64 = getppid. */
+
+	scr scrl2[] = {{13, 0},  /* 13 = time. */
+				   {20, 1}}; /* 20 = getpid. */
+
+	assertTest(sc_restrict(getpid(), 1, scrl1, 3) == 0);
+	assertTest(time(NULL) != -1);
+	assertTest(getpid() != -1);
+	assertTest(getppid() == -1);
+	assertTest(errno == ENOSYS);
+
+	assertTest(sc_restrict(getpid(), 1, scrl2, 2) == 0);
+	assertTest(time(NULL) != -1);
+	assertTest(getpid() != -1);
+	assertTest(getppid() != -1);
+
+	assertTest(get_process_log(pid, 1, fail) == 0);
+	assertFail(0, 64, 2, 1);
+	assertTest(get_process_log(pid, 2, fail) == -1);
+	assertTest(errno == EINVAL);
+}
+
+static void after_override_log_is_still_empty() {
+	fai fail[5];
+	pid_t pid = getpid();
+	scr scrl1[] = {{13, 0},  /* 13 = time. */
+				   {20, 1},  /* 20 = getpid. */
+				   {64, 2}}; /* 64 = getppid. */
+
+	scr scrl2[] = {{13, 0},  /* 13 = time. */
+				   {20, 1}}; /* 20 = getpid. */
+
+	assertTest(sc_restrict(getpid(), 1, scrl1, 3) == 0);
+
+	assertTest(sc_restrict(getpid(), 1, scrl2, 2) == 0);
+
+	assertTest(get_process_log(pid, 1, fail) == -1);
+	assertTest(errno == EINVAL);
+}
+
+static void after_override_add_to_log() {
+	fai fail[5];
+	pid_t pid = getpid();
+	scr scrl1[] = {{13, 2},  /* 13 = time. */
+				   {20, 1}}; /* 20 = getpid. */
+
+	scr scrl2[] = {{13, 0},  /* 13 = time. */
+				   {20, 0},  /* 20 = getpid. */
+				   {64, 2}}; /* 64 = getppid. */
+
+	assertTest(sc_restrict(getpid(), 1, scrl1, 2) == 0);
+	assertTest(time(NULL) == -1);
+	assertTest(getpid() != -1);
+	assertTest(getppid() != -1);
+	assertTest(errno == ENOSYS);
+
+	assertTest(sc_restrict(getpid(), 0, scrl2, 3) == 0);
+	assertTest(time(NULL) != -1);
+	assertTest(getpid() != -1);
+	assertTest(getppid() == -1);
+
+	assertTest(get_process_log(pid, 2, fail) == 0);
+	assertFail(0, 13, 2, 1);
+	assertFail(1, 64, 2, 0);
+}
+
+static void test_fork_log(){
+	int i;
+	pid_t pid = getpid();
+	fai fail[1];
+
+	scr scrl[] = {{13, 2}, // 13 = time.
+				  {20, 1}, // 20 = getpid.
+				  {64, 0}}; // 64 = getppid.
+
+	assertTest(sc_restrict(pid, 0, scrl, 3) == 0);
+	assertTest(time(NULL) == -1);
+	assertTest(errno == ENOSYS);
+
+	pid_t pid_new = fork();
+
+	if(pid_new > 0){
+		// father has 1 log entry
+		wait(NULL);
+		assertTest(get_process_log(pid, 1, fail) == 0);
+		assertFail(0, 13, 2, 0);
+	}
+
+	else{
+		// son should have empty log
+		assertTest(get_process_log(getpid(), 1, fail) == -1);
+		assertTest(errno == EINVAL);
+		exit(0);
+	}
 }
