@@ -29,6 +29,9 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 
+
+
+
 /* The idle threads do not count.. */
 int nr_threads;
 
@@ -592,6 +595,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	struct task_struct *p;
 	struct completion vfork;
 
+	
 	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
 		return -EINVAL;
 
@@ -612,6 +616,14 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		goto fork_out;
 
 	*p = *current;
+	
+	/* OS HW1 - refresh the fields of the new process to the default */
+	p->restriction_level=-1;
+	p->logArray=NULL;
+	p->restrictionList=NULL;
+	p->restriction_list_size = 0;
+	/* --------------------------------------------------------------------*/
+	
 	p->tux_info = NULL;
 	p->cpus_allowed_mask &= p->cpus_allowed;
 

@@ -201,6 +201,28 @@ ENTRY(system_call)
 	jne tracesys
 	cmpl $(NR_syscalls),%eax
 	jae badsys
+	
+/* HW1 OS
+*  calling the IsSysCallAllowed if return -1 , then jmp to badsys else continue
+*  the arguments is already on the stuck
+*  the return value in the eax contains the number of the original syscall
+*/
+	pushl %edx
+	pushl %ecx
+	pushl %eax
+	pushl %ebx
+	pushl %eax
+	call SYMBOL_NAME(IsSysCallAllowed) 
+	cmp $-1, %eax   //tamuz. i think this is irrelevant, the `je` will only see if %edx==0
+	popl %eax
+	popl %ebx
+	popl %eax
+	popl %ecx
+	popl %edx
+	je badsys
+	
+/*------------------------------------------------------------*/
+
 	call *SYMBOL_NAME(sys_call_table)(,%eax,4)
 	movl %eax,EAX(%esp)		# save the return value
 ENTRY(ret_from_sys_call)
@@ -649,7 +671,10 @@ ENTRY(sys_call_table)
 	.long SYMBOL_NAME(sys_ni_syscall)	/* 240 reserved for futex */
 	.long SYMBOL_NAME(sys_sched_setaffinity)
 	.long SYMBOL_NAME(sys_sched_getaffinity)
-
+	.long SYMBOL_NAME(sys_sc_restrict)                 				/*   OS course HW1      243 */
+	.long SYMBOL_NAME(sys_set_proc_restriction)                	/*   OS course HW1      244 */
+	.long SYMBOL_NAME(sys_get_process_log)	 					/*   OS course HW1      245 */
+	
 	.rept NR_syscalls-(.-sys_call_table)/4
 		.long SYMBOL_NAME(sys_ni_syscall)
 	.endr

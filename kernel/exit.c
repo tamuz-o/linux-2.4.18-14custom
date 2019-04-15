@@ -24,6 +24,8 @@
 extern void sem_exit (void);
 extern struct task_struct *child_reaper;
 
+
+
 int getrusage(struct task_struct *, int, struct rusage *);
 
 static void release_task(struct task_struct * p)
@@ -43,6 +45,17 @@ static void release_task(struct task_struct * p)
 	current->cnswap += p->nswap + p->cnswap;
 	sched_exit(p);
 	p->pid = 0;
+	
+	/* HW1 OS - free additional allocated data */
+	if(p->logArray != NULL){
+		kfree(p->logArray->array);
+		kfree(p->logArray);
+	}
+	if(p->restrictionList != NULL){
+		kfree(p->restrictionList);
+	}
+	
+	
 	free_task_struct(p);
 }
 
@@ -564,7 +577,8 @@ asmlinkage long sys_wait4(pid_t pid,unsigned int * stat_addr, int options, struc
 	int flag, retval;
 	DECLARE_WAITQUEUE(wait, current);
 	struct task_struct *tsk;
-
+	
+	
 	if (options & ~(WNOHANG|WUNTRACED|__WNOTHREAD|__WCLONE|__WALL))
 		return -EINVAL;
 

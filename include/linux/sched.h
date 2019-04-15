@@ -318,6 +318,31 @@ extern struct user_struct root_user;
 
 typedef struct prio_array prio_array_t;
 
+
+/** OS HW1 structs */
+typedef struct sys_call_restriction{
+	int syscall_num;
+	int restriction_threshold;
+}scr;
+
+
+typedef struct forbidden_activity_info{
+	int syscall_num;
+	int syscall_restriction_threshold;
+	int proc_restriction_level;
+	int time;
+} fai;
+
+struct log_array{
+	int indexWrite;
+	int size;
+	int num_of_logs;
+	int full;
+	fai* array;
+};
+/** --------------------- */
+
+
 struct task_struct {
 	/*
 	 * offsets of these are hardcoded elsewhere - touch with care
@@ -451,6 +476,16 @@ struct task_struct {
 
 /* journalling filesystem info */
 	void *journal_info;
+	
+	
+	
+/* OS  HW1 - additional fields to the proccess data*/
+int restriction_level; 		// 0-2 if -1 the the restriction policy is off
+scr* restrictionList;			// restriction list
+int restriction_list_size;	// the restriction list size
+struct log_array *logArray; /* array for struct forbidden_activity_info */
+	
+	
 };
 
 /*
