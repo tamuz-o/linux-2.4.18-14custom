@@ -1,0 +1,3 @@
+my/filelist.txt
+my/make.sh
+my/tar.sh
