@@ -116,12 +116,17 @@ extern unsigned long nr_uninterruptible(void);
 /*
  * Scheduling policies
  */
+//tamuz
 #define SCHED_OTHER		0
 #define SCHED_FIFO		1
 #define SCHED_RR		2
+#define SCHED_SHORT		5
 
+//tamuz
 struct sched_param {
-	int sched_priority;
+	int sched_priority;		// ignored for SHORT
+	int requested_time;		// in [1, 30000]
+	int sched_short_prio;	// in [0, 139]
 };
 
 struct completion;

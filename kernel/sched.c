@@ -134,6 +134,7 @@ struct prio_array {
  * acquire operations must be ordered by ascending &runqueue.
  */
 struct runqueue {
+	//tamuz: add SHORT queue
 	spinlock_t lock;
 	unsigned long nr_running, nr_switches, expired_timestamp;
 	signed long nr_uninterruptible;
@@ -151,7 +152,7 @@ static struct runqueue runqueues[NR_CPUS] __cacheline_aligned;
 #define task_rq(p)		cpu_rq((p)->cpu)
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define rt_task(p)		((p)->prio < MAX_RT_PRIO)
-
+//tamuz: change rt_task?
 /*
  * Default context-switch locking:
  */
@@ -228,6 +229,7 @@ static inline void enqueue_task(struct task_struct *p, prio_array_t *array)
 
 static inline int effective_prio(task_t *p)
 {
+	//tamuz
 	int bonus, prio;
 
 	/*
@@ -349,6 +351,7 @@ void kick_if_running(task_t * p)
  */
 static int try_to_wake_up(task_t * p, int sync)
 {
+	//tamuz: when to fire a need_resched
 	unsigned long flags;
 	int success = 0;
 	long old_state;
@@ -423,6 +426,7 @@ void wake_up_forked_process(task_t * p)
  */
 void sched_exit(task_t * p)
 {
+	//tamuz: if a SHORT process exits, don't add its remaining timeslice to the father's
 	__cli();
 	if (p->first_time_slice) {
 		current->time_slice += p->time_slice;
@@ -720,6 +724,7 @@ static inline void idle_tick(void)
  */
 void scheduler_tick(int user_tick, int system)
 {
+	//tamuz: what to do when timeslice is finished
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
@@ -799,6 +804,8 @@ void scheduling_functions_start_here(void) { }
  */
 asmlinkage void schedule(void)
 {
+	//tamuz: main logic of picking the next task
+	//tamuz: do not change the context-switch code here
 	task_t *prev, *next;
 	runqueue_t *rq;
 	prio_array_t *array;
@@ -1033,6 +1040,7 @@ void scheduling_functions_end_here(void) { }
 
 void set_user_nice(task_t *p, long nice)
 {
+	//tamuz: disabled for SHORT processes
 	unsigned long flags;
 	prio_array_t *array;
 	runqueue_t *rq;
@@ -1076,6 +1084,7 @@ out_unlock:
 
 asmlinkage long sys_nice(int increment)
 {
+	//tamuz: Disable for SHORT process, return -EPRIM
 	long nice;
 
 	/*
@@ -1111,6 +1120,7 @@ asmlinkage long sys_nice(int increment)
  */
 int task_prio(task_t *p)
 {
+	//tamuz
 	return p->prio - MAX_USER_RT_PRIO;
 }
 
@@ -1131,6 +1141,11 @@ static inline task_t *find_process_by_pid(pid_t pid)
 
 static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 {
+	//tamuz: only an OTHER process may be set to SHORT. it then cannot be changed to any other type. even "changing" SHORT->SHORT is error, EPERM
+	//tamuz: if requested illegal time: return -1, errno <- EINVAL.
+	//tamuz: see man-pages for other cases.
+	//tamuz note: this function is used by both sys_sched_setscheduler and sys_sched_setparam.
+	//tamuz: can't change priority or timeslice for SHORT process. return EPERM
 	struct sched_param lp;
 	int retval = -EINVAL;
 	prio_array_t *array;
@@ -1243,6 +1258,7 @@ out_nounlock:
 
 asmlinkage long sys_sched_getparam(pid_t pid, struct sched_param *param)
 {
+	//tamuz: get SHORT params?
 	struct sched_param lp;
 	int retval = -EINVAL;
 	task_t *p;
@@ -1371,6 +1387,7 @@ out_unlock:
 
 asmlinkage long sys_sched_yield(void)
 {
+	//tamuz: SHORT are like realtime
 	runqueue_t *rq = this_rq_lock();
 	prio_array_t *array = current->array;
 	int i;
@@ -1614,6 +1631,7 @@ extern void immediate_bh(void);
 
 void __init sched_init(void)
 {
+	//tamuz: runQ initialization?
 	runqueue_t *rq;
 	int i, j, k;
 

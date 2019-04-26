@@ -197,6 +197,7 @@ static int proc_sel(struct task_struct *p, int which, int who)
 
 asmlinkage long sys_setpriority(int which, int who, int niceval)
 {
+	//tamuz: disable for SHORT processes, return -EPRIM
 	struct task_struct *p;
 	int error;
 
@@ -779,7 +780,7 @@ asmlinkage long sys_setfsuid(uid_t uid)
 }
 
 /*
- * Samma på svenska..
+ * Samma svenska..
  */
 asmlinkage long sys_setfsgid(gid_t gid)
 {

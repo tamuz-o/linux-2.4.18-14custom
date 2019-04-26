@@ -587,6 +587,7 @@ static inline void copy_flags(unsigned long clone_flags, struct task_struct *p)
 int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	    struct pt_regs *regs, unsigned long stack_size)
 {
+	//tamuz: don't allow SHORT processes, return -EPRIM
 	int retval;
 	unsigned long flags;
 	struct task_struct *p;
