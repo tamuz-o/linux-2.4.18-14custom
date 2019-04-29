@@ -134,7 +134,6 @@ struct prio_array {
  * acquire operations must be ordered by ascending &runqueue.
  */
 struct runqueue {
-	//tamuz: add SHORT queue
 	spinlock_t lock;
 	unsigned long nr_running, nr_switches, expired_timestamp;
 	signed long nr_uninterruptible;
@@ -143,6 +142,7 @@ struct runqueue {
 	int prev_nr_running[NR_CPUS];
 	task_t *migration_thread;
 	list_t migration_queue;
+	prio_array_t shorts;
 } ____cacheline_aligned;
 
 static struct runqueue runqueues[NR_CPUS] __cacheline_aligned;
@@ -151,8 +151,7 @@ static struct runqueue runqueues[NR_CPUS] __cacheline_aligned;
 #define this_rq()		cpu_rq(smp_processor_id())
 #define task_rq(p)		cpu_rq((p)->cpu)
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
-#define rt_task(p)		((p)->prio < MAX_RT_PRIO)
-//tamuz: change rt_task?
+#define rt_task(p)		((p)->prio < MAX_RT_PRIO && (p)->policy != SCHED_SHORT)
 /*
  * Default context-switch locking:
  */
@@ -379,7 +378,9 @@ repeat_lock_task:
 		/*
 		 * If sync is set, a resched_task() is a NOOP
 		 */
-		if (p->prio < rq->curr->prio)
+		if (p->prio < rq->curr->prio ||
+				(rq->curr->policy == SCHED_SHORT && p->prio < MAX_RT_PRIO))
+				//tamuz: also if both are SHORT and the other has better prio
 			resched_task(rq->curr);
 		success = 1;
 	}
@@ -804,8 +805,6 @@ void scheduling_functions_start_here(void) { }
  */
 asmlinkage void schedule(void)
 {
-	//tamuz: main logic of picking the next task
-	//tamuz: do not change the context-switch code here
 	task_t *prev, *next;
 	runqueue_t *rq;
 	prio_array_t *array;
@@ -824,6 +823,8 @@ need_resched:
 	prev->sleep_timestamp = jiffies;
 	spin_lock_irq(&rq->lock);
 
+	/* Handling the rare case where current process yields the processor to wait
+	 * for a signal, and at that *exact* moment the signal arrives. */
 	switch (prev->state) {
 	case TASK_INTERRUPTIBLE:
 		if (unlikely(signal_pending(prev))) {
@@ -838,6 +839,8 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
+	/* If the runqueue is empty, run idle: */
+	//tamuz: but what if there is a SHORT waiting?
 	if (unlikely(!rq->nr_running)) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
@@ -849,6 +852,7 @@ pick_next_task:
 		goto switch_tasks;
 	}
 
+	/* If the active array is empty, swap to expired array: */
 	array = rq->active;
 	if (unlikely(!array->nr_active)) {
 		/*
@@ -860,7 +864,13 @@ pick_next_task:
 		rq->expired_timestamp = 0;
 	}
 
+	/* Find and run the highest-priority task or a SHORT task: */
 	idx = sched_find_first_bit(array->bitmap);
+	//tamuz: unlikely?
+	if (rq->shorts.nr_active && idx >= MAX_RT_PRIO) {
+		array = &rq->shorts;
+		idx = sched_find_first_bit(rq->shorts.bitmap);
+	}
 	queue = array->queue + idx;
 	next = list_entry(queue->next, task_t, run_list);
 
@@ -1143,9 +1153,6 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 {
 	//tamuz: only an OTHER process may be set to SHORT. it then cannot be changed to any other type. even "changing" SHORT->SHORT is error, EPERM
 	//tamuz: if requested illegal time: return -1, errno <- EINVAL.
-	//tamuz: see man-pages for other cases.
-	//tamuz note: this function is used by both sys_sched_setscheduler and sys_sched_setparam.
-	//tamuz: can't change priority or timeslice for SHORT process. return EPERM
 	struct sched_param lp;
 	int retval = -EINVAL;
 	prio_array_t *array;
@@ -1182,9 +1189,14 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	else {
 		retval = -EINVAL;
 		if (policy != SCHED_FIFO && policy != SCHED_RR &&
-				policy != SCHED_OTHER)
+				policy != SCHED_OTHER && policy != SCHED_SHORT)
 			goto out_unlock;
 	}
+
+	/* A SHORT process's policy and parameters cannot be changed once set. */
+	retval = -EPERM;
+	if (p->policy == SCHED_SHORT)
+		goto out_unlock;
 
 	/*
 	 * Valid priorities for SCHED_FIFO and SCHED_RR are
@@ -1631,7 +1643,6 @@ extern void immediate_bh(void);
 
 void __init sched_init(void)
 {
-	//tamuz: runQ initialization?
 	runqueue_t *rq;
 	int i, j, k;
 
@@ -1644,8 +1655,9 @@ void __init sched_init(void)
 		spin_lock_init(&rq->lock);
 		INIT_LIST_HEAD(&rq->migration_queue);
 
-		for (j = 0; j < 2; j++) {
-			array = rq->arrays + j;
+		for (j = 0; j < 3; j++) {
+			//tamuz: init shorts here. any other init needed ?
+			array = (j < 2) ? rq->arrays + j : &rq->shorts;
 			for (k = 0; k < MAX_PRIO; k++) {
 				INIT_LIST_HEAD(array->queue + k);
 				__clear_bit(k, array->bitmap);

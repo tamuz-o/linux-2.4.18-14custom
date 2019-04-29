@@ -456,6 +456,11 @@ struct task_struct {
 
 /* journalling filesystem info */
 	void *journal_info;
+
+/* SHORT process params */
+	int requested_time;
+	int short_time_remaining;
+	int short_prio;
 };
 
 /*

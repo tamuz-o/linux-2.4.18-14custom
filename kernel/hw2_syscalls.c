@@ -7,6 +7,7 @@
  * If PID doesn't exist, return -ESRCH. */
 int sys_is_short(pid_t pid)
 {
+	return 0;
 	//tamuz
 }
 
@@ -15,6 +16,7 @@ int sys_is_short(pid_t pid)
  * If process isn't SHORT return -EINVAL. */
 int sys_short_remaining_time(pid_t pid)
 {
+	return 0;
 	//tamuz
 }
 
@@ -23,5 +25,6 @@ int sys_short_remaining_time(pid_t pid)
  * If process isn't SHORT return -EINVAL. */
 int sys_short_place_in_queue(pid_t pid)
 {
+	return 0;
 	//tamuz
 }
