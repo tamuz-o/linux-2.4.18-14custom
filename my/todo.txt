@@ -1,6 +1,3 @@
-Set to SHORT with requested_time in [1, 3000] and short_prio in [0, 139].
-
-
 If a SHORT process didn't finish in time then:
 - it becomes an OTHER process
 - static_prio = min(old_static_prio + 7, MAX_PRIO-1)
@@ -15,10 +12,6 @@ A short process is need_resched if:
 - our process ended, goes out for waiting, sched_yield
 - our process finished its timeslice
 * if the timeslice wasn't finished, remember how much was left
-
-In general, try using the prio_array_t
-
-Do not change the context_switch function
 
 User times are ms, kernel times are jiffies. time=ms --> time*HZ/1000 in ticks.
 

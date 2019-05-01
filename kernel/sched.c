@@ -151,7 +151,9 @@ static struct runqueue runqueues[NR_CPUS] __cacheline_aligned;
 #define this_rq()		cpu_rq(smp_processor_id())
 #define task_rq(p)		cpu_rq((p)->cpu)
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
-#define rt_task(p)		((p)->prio < MAX_RT_PRIO && (p)->policy != SCHED_SHORT)
+#define short_task(p)	((p)->policy == SCHED_SHORT)
+//tamuz: i'm assuming that short_process->prio is not RT-prio because it was OTHER
+#define rt_task(p)		((p)->prio < MAX_RT_PRIO)
 /*
  * Default context-switch locking:
  */
@@ -228,8 +230,10 @@ static inline void enqueue_task(struct task_struct *p, prio_array_t *array)
 
 static inline int effective_prio(task_t *p)
 {
-	//tamuz
 	int bonus, prio;
+
+	if (short_task(p))
+		return p->short_prio;
 
 	/*
 	 * Here we scale the actual sleep average [0 .... MAX_SLEEP_AVG]
@@ -256,9 +260,9 @@ static inline int effective_prio(task_t *p)
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
-	prio_array_t *array = rq->active;
+	prio_array_t *array = (p->policy != SCHED_SHORT) ? rq->active : &rq->shorts;
 
-	if (!rt_task(p) && sleep_time) {
+	if (p->policy == SCHED_OTHER && sleep_time) {
 		/*
 		 * This code gives a bonus to interactive tasks. We update
 		 * an 'average sleep time' value here, based on
@@ -350,7 +354,6 @@ void kick_if_running(task_t * p)
  */
 static int try_to_wake_up(task_t * p, int sync)
 {
-	//tamuz: when to fire a need_resched
 	unsigned long flags;
 	int success = 0;
 	long old_state;
@@ -378,9 +381,15 @@ repeat_lock_task:
 		/*
 		 * If sync is set, a resched_task() is a NOOP
 		 */
-		if (p->prio < rq->curr->prio ||
-				(rq->curr->policy == SCHED_SHORT && p->prio < MAX_RT_PRIO))
-				//tamuz: also if both are SHORT and the other has better prio
+		/* Resched in any of the following cases:
+		 * - p is RealTime and current isn't
+		 * - Both are same type (RT or OTHER or SHORT) and p is more prioritized
+		 * - p is SHORT and current is just OTHER
+		 */
+		if ((rt_task(p) && !rt_task(rq->curr)) ||
+				(p->prio < rq->curr->prio &&
+				 (p->policy==rq->curr->policy || (rt_task(p)&&rt_task(rq->curr))))
+				|| (short_task(p) && rq->curr->policy == SCHED_OTHER))
 			resched_task(rq->curr);
 		success = 1;
 	}
@@ -725,7 +734,7 @@ static inline void idle_tick(void)
  */
 void scheduler_tick(int user_tick, int system)
 {
-	//tamuz: what to do when timeslice is finished
+	//tamuz now: what to do when timeslice is finished
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
@@ -840,7 +849,7 @@ need_resched:
 pick_next_task:
 #endif
 	/* If the runqueue is empty, run idle: */
-	//tamuz: but what if there is a SHORT waiting?
+	//tamuz now: but what if there is a SHORT waiting?
 	if (unlikely(!rq->nr_running)) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
@@ -866,8 +875,8 @@ pick_next_task:
 
 	/* Find and run the highest-priority task or a SHORT task: */
 	idx = sched_find_first_bit(array->bitmap);
-	//tamuz: unlikely?
-	if (rq->shorts.nr_active && idx >= MAX_RT_PRIO) {
+	//tamuz in case of bug: remove unlikely
+	if (unlikely(rq->shorts.nr_active && idx >= MAX_RT_PRIO)) {
 		array = &rq->shorts;
 		idx = sched_find_first_bit(rq->shorts.bitmap);
 	}
@@ -1130,7 +1139,7 @@ asmlinkage long sys_nice(int increment)
  */
 int task_prio(task_t *p)
 {
-	//tamuz
+	//tamuz last: https://piazza.com/class/jo64782dcdv4xs?cid=171
 	return p->prio - MAX_USER_RT_PRIO;
 }
 
@@ -1151,8 +1160,6 @@ static inline task_t *find_process_by_pid(pid_t pid)
 
 static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 {
-	//tamuz: only an OTHER process may be set to SHORT. it then cannot be changed to any other type. even "changing" SHORT->SHORT is error, EPERM
-	//tamuz: if requested illegal time: return -1, errno <- EINVAL.
 	struct sched_param lp;
 	int retval = -EINVAL;
 	prio_array_t *array;
@@ -1193,41 +1200,67 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 			goto out_unlock;
 	}
 
-	/* A SHORT process's policy and parameters cannot be changed once set. */
-	retval = -EPERM;
-	if (p->policy == SCHED_SHORT)
-		goto out_unlock;
-
 	/*
-	 * Valid priorities for SCHED_FIFO and SCHED_RR are
-	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_OTHER is 0.
+	 * Only an OTHER process can be converted to SHORT, and a SHORT process's
+	 * policy and parameters cannot be changed once set.
 	 */
-	retval = -EINVAL;
-	if (lp.sched_priority < 0 || lp.sched_priority > MAX_USER_RT_PRIO-1)
-		goto out_unlock;
-	if ((policy == SCHED_OTHER) != (lp.sched_priority == 0))
-		goto out_unlock;
-
 	retval = -EPERM;
-	if ((policy == SCHED_FIFO || policy == SCHED_RR) &&
-	    !capable(CAP_SYS_NICE))
-		goto out_unlock;
-	if ((current->euid != p->euid) && (current->euid != p->uid) &&
-	    !capable(CAP_SYS_NICE))
+	if (p->policy == SCHED_SHORT ||
+			(policy == SCHED_SHORT && p->policy != SCHED_OTHER))
 		goto out_unlock;
 
-	array = p->array;
-	if (array)
-		deactivate_task(p, task_rq(p));
-	retval = 0;
-	p->policy = policy;
-	p->rt_priority = lp.sched_priority;
-	if (policy != SCHED_OTHER)
-		p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
-	else
-		p->prio = p->static_prio;
-	if (array)
-		activate_task(p, task_rq(p));
+	//tamuz in case of bug: remove `unlikely`
+	if (unlikely(policy == SCHED_SHORT)) {
+		/* Make sure requested_time and short_prio are in range: */
+		retval = -EINVAL;
+		if (lp.requested_time > MAX_SHORT_TIME || lp.requested_time < 1 ||
+				lp.sched_short_prio < 0 || lp.sched_short_prio > MAX_PRIO - 1)
+			goto out_unlock;
+
+		/* Remove task from its current runqueue (if any): */
+		if (p->array)
+			deactivate_task(p, task_rq(p));
+
+		/* Make changes: */
+		retval = 0;
+		p->policy = SCHED_SHORT;
+		p->short_prio = lp.sched_short_prio;
+		p->requested_time = lp.requested_time;
+		p->short_time_remaining = lp.requested_time;
+		activate_task(p, task_rq(p));  //tamuz: what if (UN)INTERRUPTIBLE?
+
+	} else {  /* For non-SHORT tasks: */
+		/*
+		 * Valid priorities for SCHED_FIFO and SCHED_RR are
+		 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_OTHER is 0.
+		 */
+		retval = -EINVAL;
+		if (lp.sched_priority < 0 || lp.sched_priority > MAX_USER_RT_PRIO - 1)
+			goto out_unlock;
+		if ((policy == SCHED_OTHER) != (lp.sched_priority == 0))
+			goto out_unlock;
+
+		retval = -EPERM;
+		if ((policy == SCHED_FIFO || policy == SCHED_RR) &&
+			!capable(CAP_SYS_NICE))
+			goto out_unlock;
+		if ((current->euid != p->euid) && (current->euid != p->uid) &&
+			!capable(CAP_SYS_NICE))
+			goto out_unlock;
+
+		array = p->array;
+		if (array)
+			deactivate_task(p, task_rq(p));
+		retval = 0;
+		p->policy = policy;
+		p->rt_priority = lp.sched_priority;
+		if (policy != SCHED_OTHER)
+			p->prio = MAX_USER_RT_PRIO - 1 - p->rt_priority;
+		else
+			p->prio = p->static_prio;
+		if (array)
+			activate_task(p, task_rq(p));
+	}
 
 out_unlock:
 	task_rq_unlock(rq, &flags);
@@ -1270,7 +1303,7 @@ out_nounlock:
 
 asmlinkage long sys_sched_getparam(pid_t pid, struct sched_param *param)
 {
-	//tamuz: get SHORT params?
+	//tamuz last: fill all fields of sched_param for SHORT and others
 	struct sched_param lp;
 	int retval = -EINVAL;
 	task_t *p;
@@ -1399,7 +1432,7 @@ out_unlock:
 
 asmlinkage long sys_sched_yield(void)
 {
-	//tamuz: SHORT are like realtime
+	//tamuz: now SHORT are like realtime
 	runqueue_t *rq = this_rq_lock();
 	prio_array_t *array = current->array;
 	int i;
