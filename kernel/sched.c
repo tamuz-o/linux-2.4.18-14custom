@@ -734,7 +734,8 @@ static inline void idle_tick(void)
  */
 void scheduler_tick(int user_tick, int system)
 {
-	//tamuz now: what to do when timeslice is finished
+	/* user_tick==1 if we are in user mode.
+	 * system==1 if we are in kernel mode. */
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
@@ -754,11 +755,27 @@ void scheduler_tick(int user_tick, int system)
 	kstat.per_cpu_system[cpu] += system;
 
 	/* Task might have expired already, but not scheduled off yet */
-	if (p->array != rq->active) {
+	if (p->array == rq->expired) {
 		set_tsk_need_resched(p);
 		return;
 	}
 	spin_lock(&rq->lock);
+
+	if (unlikely(short_task(p))) {
+		--(p->short_ticks_remaining);
+		if (!p->short_ticks_remaining) {
+			dequeue_task(p, &rq->shorts);
+			p->policy = SCHED_OTHER;
+			p->static_prio += 7;
+			if (p->static_prio > MAX_PRIO - 1)
+				p->static_prio = MAX_PRIO - 1;
+			p->sleep_avg = 0.5 * MAX_SLEEP_AVG;
+			p->prio = effective_prio(p);
+			p->time_slice = TASK_TIMESLICE(p);
+		}
+		goto out;
+	}
+
 	if (unlikely(rt_task(p))) {
 		/*
 		 * RR tasks need a special form of timeslice management.
@@ -848,8 +865,7 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
-	/* If the runqueue is empty, run idle: */
-	//tamuz now: but what if there is a SHORT waiting?
+	/* If the runqueue is empty (including SHORTs), run idle: */
 	if (unlikely(!rq->nr_running)) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
@@ -875,7 +891,6 @@ pick_next_task:
 
 	/* Find and run the highest-priority task or a SHORT task: */
 	idx = sched_find_first_bit(array->bitmap);
-	//tamuz in case of bug: remove unlikely
 	if (unlikely(rq->shorts.nr_active && idx >= MAX_RT_PRIO)) {
 		array = &rq->shorts;
 		idx = sched_find_first_bit(rq->shorts.bitmap);
@@ -1209,7 +1224,6 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 			(policy == SCHED_SHORT && p->policy != SCHED_OTHER))
 		goto out_unlock;
 
-	//tamuz in case of bug: remove `unlikely`
 	if (unlikely(policy == SCHED_SHORT)) {
 		/* Make sure requested_time and short_prio are in range: */
 		retval = -EINVAL;
@@ -1226,7 +1240,9 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 		p->policy = SCHED_SHORT;
 		p->short_prio = lp.sched_short_prio;
 		p->requested_time = lp.requested_time;
-		p->short_time_remaining = lp.requested_time;
+		p->short_ticks_remaining = lp.requested_time * HZ / 1000.0;
+		if (!p->short_ticks_remaining)
+			p->short_ticks_remaining = 1;
 		activate_task(p, task_rq(p));  //tamuz: what if (UN)INTERRUPTIBLE?
 
 	} else {  /* For non-SHORT tasks: */
@@ -1432,12 +1448,13 @@ out_unlock:
 
 asmlinkage long sys_sched_yield(void)
 {
-	//tamuz: now SHORT are like realtime
 	runqueue_t *rq = this_rq_lock();
 	prio_array_t *array = current->array;
 	int i;
 
-	if (unlikely(rt_task(current))) {
+	/* If current process is RT or SHORT then just move it to the end of its
+	 * queue, call schedule() and end: */
+	if (unlikely(rt_task(current) || short_task(current))) {
 		list_del(&current->run_list);
 		list_add_tail(&current->run_list, array->queue + current->prio);
 		goto out_unlock;

@@ -459,7 +459,7 @@ struct task_struct {
 
 /* SHORT process params */
 	int requested_time;
-	int short_time_remaining;
+	int short_ticks_remaining;
 	int short_prio;
 };
 
