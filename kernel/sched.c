@@ -772,6 +772,8 @@ void scheduler_tick(int user_tick, int system)
 			p->sleep_avg = 0.5 * MAX_SLEEP_AVG;
 			p->prio = effective_prio(p);
 			p->time_slice = TASK_TIMESLICE(p);
+			set_tsk_need_resched(p);
+			enqueue_task(p, rq->active);
 		}
 		goto out;
 	}
@@ -1239,7 +1241,6 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 		retval = 0;
 		p->policy = SCHED_SHORT;
 		p->short_prio = lp.sched_short_prio;
-		p->requested_time = lp.requested_time;
 		p->short_ticks_remaining = lp.requested_time * HZ / 1000.0;
 		if (!p->short_ticks_remaining)
 			p->short_ticks_remaining = 1;

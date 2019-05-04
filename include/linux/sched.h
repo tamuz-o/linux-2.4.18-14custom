@@ -458,7 +458,6 @@ struct task_struct {
 	void *journal_info;
 
 /* SHORT process params */
-	int requested_time;
 	int short_ticks_remaining;
 	int short_prio;
 };
