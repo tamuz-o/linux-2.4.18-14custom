@@ -344,6 +344,19 @@ void kick_if_running(task_t * p)
 }
 #endif
 
+/* Return 1 if p should now be scheduled instead of curr, otherwise 0. */
+static int is_need_resched(task_t *p, task_t *curr)
+{
+	if (unlikely(short_task(p))) {
+		return (curr->policy == SCHED_OTHER ||
+			(short_task(curr) && p->short_prio < curr->short_prio));
+	} else if (unlikely(rt_task(p))) {
+		return (!rt_task(curr) || p->prio < curr->prio);
+	} else {  /* p is SCHED_OTHER */
+		return (curr->policy == SCHED_OTHER && p->prio < curr->prio);
+	}
+}
+
 /*
  * Wake up a process. Put it on the run-queue if it's not
  * already there.  The "current" process is always on the
@@ -381,15 +394,7 @@ repeat_lock_task:
 		/*
 		 * If sync is set, a resched_task() is a NOOP
 		 */
-		/* Resched in any of the following cases:
-		 * - p is RealTime and current isn't
-		 * - Both are same type (RT or OTHER or SHORT) and p is more prioritized
-		 * - p is SHORT and current is just OTHER
-		 */
-		if ((rt_task(p) && !rt_task(rq->curr)) ||
-				(p->prio < rq->curr->prio &&
-				 (p->policy==rq->curr->policy || (rt_task(p)&&rt_task(rq->curr))))
-				|| (short_task(p) && rq->curr->policy == SCHED_OTHER))
+		if (is_need_resched(p, rq->curr))
 			resched_task(rq->curr);
 		success = 1;
 	}

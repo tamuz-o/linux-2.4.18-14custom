@@ -1,25 +1,4 @@
-If a SHORT process didn't finish in time then:
-- it becomes an OTHER process
-- static_prio = min(old_static_prio + 7, MAX_PRIO-1)
-- sleep_avg = 0.5 MAX_SLEEP_AVG
-- then recalculate its time slice and prio and reinsert to rq->active
-
-SHORT processes are scheduled after all FIFO and RR processes finished.
-
-A short process is need_resched if:
-- a realtime (FIFO or RR) process is suddenly ready to run
-- a higher-prio SHORT process entered the runQ
-- our process ended, goes out for waiting, sched_yield
-- our process finished its timeslice
-* if the timeslice wasn't finished, remember how much was left
-
-User times are ms, kernel times are jiffies==ticks. time=ms --> time*HZ/1000 in ticks.
-
-During development, better not make SHORT more important than OTHER.
-Do that only after much testing.
-
-Don't use kmalloc. It's dangerous to do that from scheduler code because kmalloc might sleep.
-Don't use recursion.
+Assert exit, yield, wait
 
 Test manually for kernel oops by looking at the prints in dmesg | less -S
 
@@ -31,6 +10,8 @@ cat /proc/cpuinfo | grep "MHz"
 Stuff about time: http://man7.org/linux/man-pages/man2/times.2.html
 
 Setting policy with sched_setscheduler(pid_t pid, int policy, const struct sched_param *param)
+
+User times are ms, kernel times are jiffies==ticks. time=ms --> time*HZ/1000 in ticks.
 
 
 T E S T I N G

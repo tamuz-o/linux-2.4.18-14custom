@@ -30,9 +30,9 @@ void print_repeat (long interval_ms, int repeats, const char* text)
 	for (i=0; i<repeats; ++i) {
 		t1 += interval_ms;
 		while (get_my_runtime() < t1) ;
-//		printf(text);
-//		fflush(stdout);
-		write(1, text, 1);
+		printf(text);
+		fflush(stdout);
+//		write(1, text, 1);
 	}
 }
 
@@ -55,27 +55,32 @@ void set_short (pid_t pid, int rtime, int prio)
 
 int main()
 {
-/*
-	busy_wait(500);
-	printf("1\n");
-	print_repeat(200, 2, "z");
-*/
-	pid_t sp = fork();
-	if (!sp) {
-		shortp(sp);
-		printf("\n");
+	test_short_is_complete();
+	printf("\n");
+	sleep(4);
+	test_short_timeslice_finished();
+	printf("\n");
+	return 0;
+}
+
+int test_short_is_complete() {
+	pid_t pid = fork();
+	if (pid) {  /*father*/
+		set_short(/*getpid()*/pid, 3000, 130);
+		print_repeat(200, 6, "L");
 	} else {
-		longp(sp);
-		printf("\n");
+		print_repeat(100, 4, "S");
 	}
 	return 0;
 }
 
-void longp(pid_t son_pid) {
-	set_short(/*getpid()*/son_pid, 3000, 130);
-	print_repeat(200, 6, "L");
-}
-
-void shortp(pid_t my_pid) {
-	print_repeat(100, 4, "S");
+int test_short_timeslice_finished() {
+	pid_t pid = fork();
+	if (pid) {  /*father*/
+		set_short(/*getpid()*/pid, 3000, 130);
+		print_repeat(200, 6, "L");
+	} else {
+		print_repeat(500, 8, "S");
+	}
+	return 0;
 }
