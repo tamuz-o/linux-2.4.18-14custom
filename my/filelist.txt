@@ -2,7 +2,6 @@ arch/i386/kernel/entry.S
 include/linux/sched.h
 kernel/Makefile
 kernel/fork.c
-kernel/hw2_syscalls.c
 kernel/sched.c
 kernel/sys.c
 my/hw2_syscalls.h
@@ -10,3 +9,4 @@ my/filelist.txt
 my/make.sh
 my/tar.sh
 my/tests.c
+my/VirusThatLooksLikeOSTest.c

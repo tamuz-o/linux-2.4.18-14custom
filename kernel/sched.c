@@ -154,6 +154,7 @@ static struct runqueue runqueues[NR_CPUS] __cacheline_aligned;
 #define short_task(p)	((p)->policy == SCHED_SHORT)
 //tamuz: i'm assuming that short_process->prio is not RT-prio because it was OTHER
 #define rt_task(p)		((p)->prio < MAX_RT_PRIO)
+#define get_task(pid)	((pid)<0 ? NULL : find_task_by_pid((pid)))
 /*
  * Default context-switch locking:
  */
@@ -777,6 +778,7 @@ void scheduler_tick(int user_tick, int system)
 			p->sleep_avg = 0.5 * MAX_SLEEP_AVG;
 			p->prio = effective_prio(p);
 			p->time_slice = TASK_TIMESLICE(p);
+			p->first_time_slice = 0;
 			set_tsk_need_resched(p);
 			enqueue_task(p, rq->active);
 		}
@@ -1999,3 +2001,63 @@ struct low_latency_enable_struct __enable_lowlatency = { 0, };
 
 #endif	/* LOWLATENCY_NEEDED */
 
+
+/* system calls for SHORT processes: */
+
+/* Return 1 iff process is SHORT.
+ * If PID doesn't exist, return -ESRCH. */
+int sys_is_short(pid_t pid)
+{
+	task_t *task = get_task(pid);
+	if (!task) {
+		return -ESRCH;
+	}
+	return (task->policy == SCHED_SHORT);
+}
+
+/* Return the process's remaining timeslice, in ms.
+ * If PID doesn't exist return -ESRCH.
+ * If process isn't SHORT return -EINVAL. */
+int sys_short_remaining_time(pid_t pid)
+{
+	task_t *task = get_task(pid);
+	if (!task) {
+		return -ESRCH;
+	}
+	if (task->policy != SCHED_SHORT) {
+		return -EINVAL;
+	}
+	return task->short_ticks_remaining * 1000.0 / HZ;
+}
+
+/* Return the number of SHORT process scheduled to run strictly before the given process.
+ * If PID doesn't exist return -ESRCH.
+ * If process isn't SHORT return -EINVAL. */
+int sys_short_place_in_queue(pid_t pid)
+{
+	int result = 0, i;
+	runqueue_t *rq;
+	list_t *tmp;
+
+	task_t *task = get_task(pid);
+	if (!task) {
+		return -ESRCH;
+	}
+	if (task->policy != SCHED_SHORT) {
+		return -EINVAL;
+	}
+
+	rq = task_rq(task);
+	if (rq->curr == task) {
+		return 0;
+	}
+	for (i=0; i<task->short_prio; ++i) {
+		result += rq->shorts.nr_active;
+	}
+	list_for_each(tmp, rq->shorts.queue + task->short_prio) {
+		if (list_entry(tmp, task_t, run_list) == task)
+			break;
+		++result;
+	}
+	return result;
+}
