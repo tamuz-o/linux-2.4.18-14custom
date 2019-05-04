@@ -441,9 +441,9 @@ void wake_up_forked_process(task_t * p)
  */
 void sched_exit(task_t * p)
 {
-	//tamuz: if a SHORT process exits, don't add its remaining timeslice to the father's
 	__cli();
-	if (p->first_time_slice) {
+	/*if a SHORT process exits, don't add its remaining timeslice to the father's*/
+	if (p->first_time_slice && !short_task(p)) {
 		current->time_slice += p->time_slice;
 		if (unlikely(current->time_slice > MAX_TIMESLICE))
 			current->time_slice = MAX_TIMESLICE;
@@ -1081,7 +1081,6 @@ void scheduling_functions_end_here(void) { }
 
 void set_user_nice(task_t *p, long nice)
 {
-	//tamuz: disabled for SHORT processes
 	unsigned long flags;
 	prio_array_t *array;
 	runqueue_t *rq;
@@ -1125,8 +1124,10 @@ out_unlock:
 
 asmlinkage long sys_nice(int increment)
 {
-	//tamuz: Disable for SHORT process, return -EPRIM
 	long nice;
+
+	if (unlikely(short_task(current)))
+		return -EPERM;
 
 	/*
 	 *	Setpriority might change our priority at the same moment.
@@ -1161,7 +1162,8 @@ asmlinkage long sys_nice(int increment)
  */
 int task_prio(task_t *p)
 {
-	//tamuz last: https://piazza.com/class/jo64782dcdv4xs?cid=171
+	if (unlikely(short_task(p)))
+		return p->short_prio;
 	return p->prio - MAX_USER_RT_PRIO;
 }
 
@@ -1325,7 +1327,6 @@ out_nounlock:
 
 asmlinkage long sys_sched_getparam(pid_t pid, struct sched_param *param)
 {
-	//tamuz last: fill all fields of sched_param for SHORT and others
 	struct sched_param lp;
 	int retval = -EINVAL;
 	task_t *p;
@@ -1339,6 +1340,8 @@ asmlinkage long sys_sched_getparam(pid_t pid, struct sched_param *param)
 	if (!p)
 		goto out_unlock;
 	lp.sched_priority = p->rt_priority;
+	lp.requested_time = p->short_ticks_remaining * 1000.0 / HZ;  //tamuz: not actually the requested time
+	lp.sched_short_prio = p->short_prio;
 	read_unlock(&tasklist_lock);
 
 	/*

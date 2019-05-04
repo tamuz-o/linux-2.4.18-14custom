@@ -197,7 +197,6 @@ static int proc_sel(struct task_struct *p, int which, int who)
 
 asmlinkage long sys_setpriority(int which, int who, int niceval)
 {
-	//tamuz: disable for SHORT processes, return -EPRIM
 	struct task_struct *p;
 	int error;
 
@@ -216,7 +215,8 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 		if (!proc_sel(p, which, who))
 			continue;
 		if (p->uid != current->euid &&
-			p->uid != current->uid && !capable(CAP_SYS_NICE)) {
+			p->uid != current->uid && !capable(CAP_SYS_NICE) ||
+			p->policy == SCHED_SHORT) {
 			error = -EPERM;
 			continue;
 		}
