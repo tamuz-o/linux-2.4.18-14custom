@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <termios.h>
+#include <sys/types.h>
 
 #ifndef HW2_SYSCALLS_H_
 #define HW2_SYSCALLS_H_

@@ -260,6 +260,7 @@ static inline int effective_prio(task_t *p)
 
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
+	//tamuz: when a process becomes short, remove it from its runlist (here or in setscheduler)
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
 	prio_array_t *array = (p->policy != SCHED_SHORT) ? rq->active : &rq->shorts;
 
@@ -1254,6 +1255,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 		if (!p->short_ticks_remaining)
 			p->short_ticks_remaining = 1;
 		activate_task(p, task_rq(p));  //tamuz: what if (UN)INTERRUPTIBLE?
+		//tamuz: need_resched in some cases
 
 	} else {  /* For non-SHORT tasks: */
 		/*
@@ -1342,7 +1344,8 @@ asmlinkage long sys_sched_getparam(pid_t pid, struct sched_param *param)
 	if (!p)
 		goto out_unlock;
 	lp.sched_priority = p->rt_priority;
-	lp.requested_time = p->short_ticks_remaining * 1000.0 / HZ;  //tamuz: not actually the requested time
+	//tamuz: return the original req time instead of this:
+	lp.requested_time = p->short_ticks_remaining * 1000.0 / HZ;
 	lp.sched_short_prio = p->short_prio;
 	read_unlock(&tasklist_lock);
 
@@ -2059,5 +2062,6 @@ int sys_short_place_in_queue(pid_t pid)
 			break;
 		++result;
 	}
+	//tamuz: if process is sleeping then add everyone in its same-prio queue
 	return result;
 }

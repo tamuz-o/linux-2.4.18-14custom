@@ -16,3 +16,4 @@ User times are ms, kernel times are jiffies==ticks. time=ms --> time*HZ/1000 in 
 
 T E S T I N G
 requested_time is shorter than tick
+finished process doesn't stay in memory forever
