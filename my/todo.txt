@@ -9,10 +9,17 @@ Setting policy with sched_setscheduler(pid_t pid, int policy, const struct sched
 User times are ms, kernel times are jiffies==ticks. time=ms --> time*HZ/1000 in ticks.
 
 
-T E S T I N G
-requested_time is shorter than tick
-finished process doesn't stay in memory forever
-
-
 REMOVE FROM TESTS
 test12: assertTest(get_result.sched_priority == param2.sched_priority);
+
+
+T E S T I N G
+finished process doesn't stay in memory forever
+retain timeslice when sleeping
+really can't change parameters (dont just check that it returned -1)
+run in order: RT -> SHORT -> OTHER, consider prio or short prio, FIFO for SHORTs
+test hw2syscalls
+test get_remain after failing to set short and after short finished or is sleeping
+place in queue for many processes
+tests with RT processes
+

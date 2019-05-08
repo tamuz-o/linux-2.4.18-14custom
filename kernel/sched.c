@@ -152,7 +152,6 @@ static struct runqueue runqueues[NR_CPUS] __cacheline_aligned;
 #define task_rq(p)		cpu_rq((p)->cpu)
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define short_task(p)	((p)->policy == SCHED_SHORT)
-//tamuz: i'm assuming that short_process->prio is not RT-prio because it was OTHER
 #define rt_task(p)		((p)->prio < MAX_RT_PRIO)
 #define get_task(pid)	((pid)<0 ? NULL : find_task_by_pid((pid)))
 /*
@@ -276,7 +275,6 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 			p->sleep_avg = MAX_SLEEP_AVG;
 		p->prio = effective_prio(p);
 	} else if (unlikely(short_task(p))) {
-		printk("%d activated\n", p->pid); //tamuz
 		p->prio = effective_prio(p);
 	}
 	enqueue_task(p, array);
@@ -285,7 +283,6 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 
 static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
-	if (p->policy == SCHED_SHORT) printk("%d deactivated\n", p->pid); //tamuz
 	rq->nr_running--;
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
@@ -448,7 +445,6 @@ void sched_exit(task_t * p)
 {
 	__cli();
 	/*if a SHORT process exits, don't add its remaining timeslice to the father's*/
-	if (p->policy == SCHED_SHORT) printk("%d exited\n", p->pid); //tamuz
 	if (p->first_time_slice && !short_task(p)) {
 		current->time_slice += p->time_slice;
 		if (unlikely(current->time_slice > MAX_TIMESLICE))
@@ -775,7 +771,6 @@ void scheduler_tick(int user_tick, int system)
 	if (unlikely(short_task(p))) {
 		--(p->short_ticks_remaining);
 		if (!p->short_ticks_remaining) {
-			printk("%d out of time\n", p->pid);  //tamuz
 			dequeue_task(p, &rq->shorts);
 			p->policy = SCHED_OTHER;
 			p->static_prio += 7;
@@ -909,7 +904,6 @@ pick_next_task:
 	if (unlikely(rq->shorts.nr_active && idx >= MAX_RT_PRIO)) {
 		array = &rq->shorts;
 		idx = sched_find_first_bit(rq->shorts.bitmap);
-		printk("scheduling short prio %d\n", idx);
 	}
 	queue = array->queue + idx;
 	next = list_entry(queue->next, task_t, run_list);
@@ -1262,7 +1256,6 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 		p->short_ticks_remaining = lp.requested_time * HZ / 1000.0;
 		if (!p->short_ticks_remaining)
 			p->short_ticks_remaining = 1;
-		printk("set %d to short\n", p->pid);
 
 		/* If the task wasn't sleeping before then re-activate it now: */
 		if (array)
@@ -1735,7 +1728,6 @@ void __init sched_init(void)
 		INIT_LIST_HEAD(&rq->migration_queue);
 
 		for (j = 0; j < 3; j++) {
-			//tamuz: init shorts here. any other init needed ?
 			array = (j < 2) ? rq->arrays + j : &rq->shorts;
 			for (k = 0; k < MAX_PRIO; k++) {
 				INIT_LIST_HEAD(array->queue + k);
