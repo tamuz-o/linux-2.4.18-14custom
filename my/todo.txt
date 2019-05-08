@@ -1,8 +1,3 @@
-Assert exit, yield, wait
-
-Test manually for kernel oops by looking at the prints in dmesg | less -S
-
-
 T I P S
 Check proccessor clock frequency:
 cat /proc/cpuinfo | grep "MHz"
@@ -17,3 +12,7 @@ User times are ms, kernel times are jiffies==ticks. time=ms --> time*HZ/1000 in 
 T E S T I N G
 requested_time is shorter than tick
 finished process doesn't stay in memory forever
+
+
+REMOVE FROM TESTS
+test12: assertTest(get_result.sched_priority == param2.sched_priority);

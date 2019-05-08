@@ -260,7 +260,6 @@ static inline int effective_prio(task_t *p)
 
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
-	//tamuz: when a process becomes short, remove it from its runlist (here or in setscheduler)
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
 	prio_array_t *array = (p->policy != SCHED_SHORT) ? rq->active : &rq->shorts;
 
@@ -276,6 +275,9 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 		if (p->sleep_avg > MAX_SLEEP_AVG)
 			p->sleep_avg = MAX_SLEEP_AVG;
 		p->prio = effective_prio(p);
+	} else if (unlikely(short_task(p))) {
+		printk("%d activated\n", p->pid); //tamuz
+		p->prio = effective_prio(p);
 	}
 	enqueue_task(p, array);
 	rq->nr_running++;
@@ -283,6 +285,7 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 
 static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
+	if (p->policy == SCHED_SHORT) printk("%d deactivated\n", p->pid); //tamuz
 	rq->nr_running--;
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
@@ -445,6 +448,7 @@ void sched_exit(task_t * p)
 {
 	__cli();
 	/*if a SHORT process exits, don't add its remaining timeslice to the father's*/
+	if (p->policy == SCHED_SHORT) printk("%d exited\n", p->pid); //tamuz
 	if (p->first_time_slice && !short_task(p)) {
 		current->time_slice += p->time_slice;
 		if (unlikely(current->time_slice > MAX_TIMESLICE))
@@ -771,6 +775,7 @@ void scheduler_tick(int user_tick, int system)
 	if (unlikely(short_task(p))) {
 		--(p->short_ticks_remaining);
 		if (!p->short_ticks_remaining) {
+			printk("%d out of time\n", p->pid);  //tamuz
 			dequeue_task(p, &rq->shorts);
 			p->policy = SCHED_OTHER;
 			p->static_prio += 7;
@@ -904,6 +909,7 @@ pick_next_task:
 	if (unlikely(rq->shorts.nr_active && idx >= MAX_RT_PRIO)) {
 		array = &rq->shorts;
 		idx = sched_find_first_bit(rq->shorts.bitmap);
+		printk("scheduling short prio %d\n", idx);
 	}
 	queue = array->queue + idx;
 	next = list_entry(queue->next, task_t, run_list);
@@ -1192,7 +1198,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	prio_array_t *array;
 	unsigned long flags;
 	runqueue_t *rq;
-	task_t *p;
+	task_t *p, *curr;
 
 	if (!param || pid < 0)
 		goto out_nounlock;
@@ -1244,18 +1250,28 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 			goto out_unlock;
 
 		/* Remove task from its current runqueue (if any): */
-		if (p->array)
+		array = p->array;
+		if (array)
 			deactivate_task(p, task_rq(p));
 
 		/* Make changes: */
 		retval = 0;
 		p->policy = SCHED_SHORT;
 		p->short_prio = lp.sched_short_prio;
+		p->requested_time = lp.requested_time;
 		p->short_ticks_remaining = lp.requested_time * HZ / 1000.0;
 		if (!p->short_ticks_remaining)
 			p->short_ticks_remaining = 1;
-		activate_task(p, task_rq(p));  //tamuz: what if (UN)INTERRUPTIBLE?
-		//tamuz: need_resched in some cases
+		printk("set %d to short\n", p->pid);
+
+		/* If the task wasn't sleeping before then re-activate it now: */
+		if (array)
+			activate_task(p, task_rq(p));
+
+		/* If p should run before current task then set need_resched: */
+		curr = current;
+		if (p != curr && is_need_resched(p, curr))
+			resched_task(curr);
 
 	} else {  /* For non-SHORT tasks: */
 		/*
@@ -1344,8 +1360,7 @@ asmlinkage long sys_sched_getparam(pid_t pid, struct sched_param *param)
 	if (!p)
 		goto out_unlock;
 	lp.sched_priority = p->rt_priority;
-	//tamuz: return the original req time instead of this:
-	lp.requested_time = p->short_ticks_remaining * 1000.0 / HZ;
+	lp.requested_time = p->requested_time;
 	lp.sched_short_prio = p->short_prio;
 	read_unlock(&tasklist_lock);
 
@@ -2054,14 +2069,15 @@ int sys_short_place_in_queue(pid_t pid)
 	if (rq->curr == task) {
 		return 0;
 	}
-	for (i=0; i<task->short_prio; ++i) {
-		result += rq->shorts.nr_active;
+	/* For each priority up to this task's prio: */
+	for (i=0; i <= task->short_prio; ++i) {
+		/* Count the number of elements with short_prio == i: */
+		list_for_each(tmp, rq->shorts.queue + i) {
+			/* Stop when encountering the requested task */
+			if (list_entry(tmp, task_t, run_list) == task)
+				return result;
+			++result;
+		}
 	}
-	list_for_each(tmp, rq->shorts.queue + task->short_prio) {
-		if (list_entry(tmp, task_t, run_list) == task)
-			break;
-		++result;
-	}
-	//tamuz: if process is sleeping then add everyone in its same-prio queue
 	return result;
 }
