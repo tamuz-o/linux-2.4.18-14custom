@@ -152,7 +152,7 @@ static struct runqueue runqueues[NR_CPUS] __cacheline_aligned;
 #define task_rq(p)		cpu_rq((p)->cpu)
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define short_task(p)	((p)->policy == SCHED_SHORT)
-#define rt_task(p)		((p)->prio < MAX_RT_PRIO)
+#define rt_task(p)		((p)->prio < MAX_RT_PRIO && !short_task((p)))
 #define get_task(pid)	((pid)<0 ? NULL : find_task_by_pid((pid)))
 /*
  * Default context-switch locking:

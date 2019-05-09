@@ -15,4 +15,3 @@ test12: assertTest(get_result.sched_priority == param2.sched_priority);
 
 T E S T I N G
 finished process doesn't stay in memory forever
-run in order: RT -> SHORT -> OTHER, consider prio or short prio, FIFO for SHORTs
